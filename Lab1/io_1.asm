@@ -26,7 +26,7 @@ getc:
 
 # Print character in $a0.
 putc:
-	li	$v0,	11			# Syscall code for print_char
+	li	$v0,	1			# Syscall code for print_int
 	syscall
 	jr	$ra				# Return
 
