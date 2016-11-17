@@ -23,8 +23,6 @@ wait_for_console_1:
 
 wait_for_console_2:
 	# Initialize CPU registers with addresses of console interface registers
-	la	$t0,	0xffff0008			# $t0 <- 0xffff_0008 (address of console control register)
-	la	$t1,	0xffff000c			# $t1 <- 0xffff_000c (address of console data register)
 	lw	$t2,	0($t0)				# $t2 <- value of console control register
 	andi	$t2,	$t2,	1			# Mask all bits except LSB
 	beq	$zero,	$t2,	wait_for_console_2	# Loop if LSB unset (console busy)
