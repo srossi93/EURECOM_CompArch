@@ -14,6 +14,10 @@ print_int_message:
 .asciiz "\nThe integer you entered is: "
 bye_message:
 .asciiz "\nBye!"
+not_char_message:
+.asciiz "\nSorry, the character you inserted is not a number. Try again, please!"
+overflow_message:
+.asciiz "\nSorry, the number you inserted is too big. Try again, please!"
 
 # Code section
 .text
@@ -53,6 +57,7 @@ putc:
   li  $t3,  10        # ASCII code of newline
   sw  $t3,  0($t1)        # Send newline character to console
   jr $ra
+
 #***************************************************************************************************
 # Convertion ASCII code of a character in register $a0 to a decimal integer between 0
 # and 9 and returns it in register $v0. Return also an error code in register $v1:
@@ -103,8 +108,8 @@ geti:
 	  # Get char from keyboard
 	  jal		getc 
 	  # If it is 'return' exit
-	  addi	$s2, $zero, 10  
-	  beq		$s0, $v0, __number_finished
+	  addi	$s2, $zero, '\n'  
+	  beq		$s2, $v0, __number_finished
 	  # Otherwise convert into number
 	  add   $a0, $zero, $v0
 	  jal   d2i
@@ -113,17 +118,26 @@ geti:
 	  beq		$s2, $v1, __not_a_number_error
     # Update numerical value
 	  addi  $s3, $zero, 10
+		add   $s4, $zero, $s0  # Save in s4 the snapshot of the previous number
 	  mul   $s0, $s0, $s3
 	  add   $s0, $s0, $v0
+		  # If the new number is less than the number in s4 => overflow
+    sgtu  $t1, $s0, $s4
     b			__new_char
 
-__not_a_number_error:
+    # Overflow error
+		addi $v1, $zero, 2
+		b 	 __geti_exit    
 
+  __not_a_number_error:
+    addi  $v1, $zero, 1
+ 	  b     __geti_exit
 
-__number_finished:
+  __number_finished:
+	  add   $v0, $zero, $s0
+    addi  $v1, $zero, 0
 	
-	add  $v0, $zero, $s0
-	
+__geti_exit:	
 	# Restore Return Address
 	lw		$ra, 12($sp)
 	lw    $s2, 8($sp)
@@ -149,19 +163,19 @@ puti:
 main:
 
 # Read a character, goto end if it is a newline, else print it.
-# main_char:
-#   la  $a0,  enter_char_message  # Print message
-#   li  $v0,  4
-#   syscall
-#   jal  getc        # Read character
-#   li  $t0,  10      # Newline ASCII code
-#   beq  $v0,  $t0,  main_end  # Goto end if read character is newline
-#   move  $s0,  $v0      # Copy read character in $s0
-#   la  $a0,  print_char_message  # Print message
-#   li  $v0,  4
-#   syscall
-#   move  $a0,  $s0      # Copy read character in $a0
-#   jal  putc        # Print read character
+ main_char:
+   la  $a0,  enter_char_message  # Print message
+   li  $v0,  4
+   syscall
+   jal  getc        # Read character
+   li  $t0,  10      # Newline ASCII code
+   beq  $v0,  $t0,  main_end  # Goto end if read character is newline
+   move  $s0,  $v0      # Copy read character in $s0
+   la  $a0,  print_char_message  # Print message
+   li  $v0,  4
+   syscall
+   move  $a0,  $s0      # Copy read character in $a0
+   jal  putc        # Print read character
 
 # Read an integer, goto end if it is 0, else print it.
 main_int:
@@ -169,6 +183,25 @@ main_int:
   li  $v0,  4
   syscall
   jal  geti        # Read integer
+  # Check error code
+  beq  $v1, $zero, no_error # Print if error code is 0
+  # We are here if an error has been detected
+	addi $t0, $zero, 1
+  beq  $v1, $t0, no_char_error # Not char error if error code is 1
+  # The error code is 2 (overflow), print something and return
+  la  $a0,  overflow_message  # Print message
+  li  $v0,  4
+  syscall
+	b main_int
+
+no_char_error:
+  # Print something
+  la  $a0,  not_char_message  # Print message
+  li  $v0,  4
+  syscall
+	b main_int
+
+no_error:
   beq  $v0,  $zero,  main_end  # Goto end if read integer is 0
   move  $s0,  $v0      # Copy read integer in $s0
   la  $a0,  print_int_message  # Print message
